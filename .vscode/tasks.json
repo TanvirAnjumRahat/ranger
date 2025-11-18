@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "flutter analyze",
+			"type": "shell",
+			"command": "flutter analyze",
+			"isBackground": false,
+			"problemMatcher": [
+				"$flutter-build"
+			],
+			"group": "build"
+		},
+		{
+			"label": "flutter analyze after auth fix",
+			"type": "shell",
+			"command": "flutter analyze",
+			"isBackground": false,
+			"problemMatcher": [
+				"$flutter-build"
+			],
+			"group": "build"
+		}
+	]
+}

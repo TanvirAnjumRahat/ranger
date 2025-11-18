@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "853002897607",
+    "project_id": "routineranger",
+    "storage_bucket": "routineranger.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:853002897607:android:01394583f54d6e4a5dd6e2",
+        "android_client_info": {
+          "package_name": "com.example.ranger"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "853002897607-kv1s6710l76eb3pqfvmdudv94s15c92n.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4a6WWhSvkfwIAVkXOyCZ_ZjXxSRLi-Ec"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "853002897607-kv1s6710l76eb3pqfvmdudv94s15c92n.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "853002897607-s4vidki101juvg46lif3dnglule0runc.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.ranger"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
