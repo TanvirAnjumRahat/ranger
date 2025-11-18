@@ -4,6 +4,7 @@ import '../providers/routine_provider.dart';
 import '../models/routine.dart';
 import '../routes.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../widgets/streak_widget.dart';
 
 class RoutineDetailScreen extends StatelessWidget {
   final String routineId;
@@ -73,6 +74,9 @@ class RoutineDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Streak Tracking
+          StreakWidget(routine: rr),
+          const SizedBox(height: 16),
           if (rr.description != null && rr.description!.isNotEmpty) ...[
             Text(rr.description!),
             const SizedBox(height: 12),

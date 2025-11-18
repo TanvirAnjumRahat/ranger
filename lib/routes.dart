@@ -5,6 +5,8 @@ import 'screens/routine_form_screen.dart';
 import 'screens/analytics_screen.dart';
 import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/templates_screen.dart';
+import 'screens/onboarding_screen.dart';
 
 class AppRoutes {
   static const home = '/home';

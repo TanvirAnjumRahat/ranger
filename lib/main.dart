@@ -11,6 +11,9 @@ import 'routes.dart';
 import 'providers/notifications_provider.dart';
 import 'app_navigator.dart';
 import 'providers/filters_provider.dart';
+import 'providers/theme_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/onboarding_screen.dart';
 
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -98,6 +101,7 @@ class MyApp extends StatelessWidget {
         }
         return MultiProvider(
           providers: [
+            ChangeNotifierProvider(create: (_) => ThemeProvider()),
             ChangeNotifierProvider(create: (_) => AuthProvider()),
             ChangeNotifierProvider(create: (_) => RoutinesProvider()),
             ChangeNotifierProvider(
@@ -107,19 +111,45 @@ class MyApp extends StatelessWidget {
             ),
             ChangeNotifierProvider(create: (_) => FiltersProvider()),
           ],
-          child: MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Routine Ranger',
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-              useMaterial3: true,
-            ),
-            navigatorKey: appNavigatorKey,
-            onGenerateRoute: onGenerateRoute,
-            home: const AuthHomePage(),
+          child: Consumer<ThemeProvider>(
+            builder: (context, themeProv, _) {
+              return FutureBuilder<bool>(
+                future: _checkOnboarding(),
+                builder: (context, onboardingSnapshot) {
+                  if (!onboardingSnapshot.hasData) {
+                    return MaterialApp(
+                      debugShowCheckedModeBanner: false,
+                      home: const Scaffold(
+                        body: Center(child: CircularProgressIndicator()),
+                      ),
+                    );
+                  }
+
+                  return MaterialApp(
+                    debugShowCheckedModeBanner: false,
+                    title: 'Routine Ranger',
+                    theme: themeProv.lightTheme,
+                    darkTheme: themeProv.darkTheme,
+                    themeMode: themeProv.isDarkMode
+                        ? ThemeMode.dark
+                        : ThemeMode.light,
+                    navigatorKey: appNavigatorKey,
+                    onGenerateRoute: onGenerateRoute,
+                    home: onboardingSnapshot.data!
+                        ? const AuthHomePage()
+                        : const OnboardingScreen(),
+                  );
+                },
+              );
+            },
           ),
         );
       },
     );
+  }
+
+  Future<bool> _checkOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('onboarding_completed') ?? false;
   }
 }

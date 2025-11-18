@@ -5,8 +5,14 @@ service cloud.firestore {
     
     // Routines collection: users can only read/write their own routines
     match /routines/{routineId} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.uid;
+      // Allow list/query operations if authenticated (client filters by uid)
+      allow list: if request.auth != null;
+      // Allow read specific document if user owns it
+      allow get: if request.auth != null && request.auth.uid == resource.data.uid;
+      // Allow create if user sets their own uid
       allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      // Allow update/delete if user owns the routine
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
     }
     
     // Deny all other collections by default

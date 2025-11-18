@@ -7,6 +7,7 @@ import '../widgets/routine_card.dart';
 import '../providers/filters_provider.dart';
 import '../providers/notifications_provider.dart';
 import '../models/enums.dart';
+import 'dart:math' as math;
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -30,7 +31,7 @@ class HomeScreen extends StatelessWidget {
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Routine Ranger'),
+        title: const Text('My Routines'),
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_active_outlined),
@@ -74,16 +75,66 @@ class HomeScreen extends StatelessWidget {
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Sign out',
-            onPressed: () => context.read<AuthProvider>().signOut(),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'refresh') {
+                final user = context.read<AuthProvider>().user;
+                if (user != null) {
+                  context.read<RoutinesProvider>().loadRoutinesForUser(
+                    user.uid,
+                  );
+                }
+              } else if (value == 'export_all') {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Export all feature coming soon'),
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    Icon(Icons.refresh),
+                    SizedBox(width: 8),
+                    Text('Refresh'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'export_all',
+                child: Row(
+                  children: [
+                    Icon(Icons.upload),
+                    SizedBox(width: 8),
+                    Text('Export All'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
       body: Builder(
         builder: (context) {
           final filtersProv = context.watch<FiltersProvider>();
+          final allRoutines = routinesProv.routines;
+          final todayCompleted = allRoutines.where((r) {
+            final today = DateTime.now();
+            return r.completedDates.any((ts) {
+              final d = ts.toDate();
+              return d.year == today.year &&
+                  d.month == today.month &&
+                  d.day == today.day;
+            });
+          }).length;
+          final totalToday = allRoutines.where((r) {
+            final today = DateTime.now();
+            return r.date.toDate().isBefore(today.add(const Duration(days: 1)));
+          }).length;
           final filters = filtersProv.filters;
           if (routinesProv.loading) {
             return const Center(child: CircularProgressIndicator());
@@ -126,46 +177,74 @@ class HomeScreen extends StatelessWidget {
             return matchesSearch && matchesCategory && matchesPriority;
           }).toList();
           if (list.isEmpty) {
-            return const Center(
-              child: Text('No routines yet. Tap + to add one.'),
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _buildStatsRow(context, todayCompleted, totalToday, routinesProv.routines.length),
+                  const SizedBox(height: 16),
+                  _buildQuoteCard(context),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                  onPressed: () => Navigator.pushNamed(context, '/templates'),
+                    icon: const Icon(Icons.auto_awesome),
+                    label: const Text('Browse Templates'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.all(16),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text('No routines yet. Tap + to add one.'),
+                ],
+              ),
             );
           }
-          return ListView.builder(
-            itemCount: list.length,
-            itemBuilder: (context, index) {
-              final r = list[index];
-              return RoutineCard(
-                routine: r,
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.routineDetail,
-                  arguments: r.id,
-                ),
-                onComplete: () async {
-                  final when = DateTime.now();
-                  await context.read<RoutinesProvider>().toggleComplete(
-                    r,
-                    when,
-                  );
-                  if (!context.mounted) return;
-                  final messenger = ScaffoldMessenger.of(context);
-                  messenger.showSnackBar(
-                    SnackBar(
-                      content: const Text('Marked as done'),
-                      action: SnackBarAction(
-                        label: 'Undo',
-                        onPressed: () {
-                          context.read<RoutinesProvider>().undoComplete(
-                            r,
-                            when,
-                          );
-                        },
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: _buildStatsRow(context, todayCompleted, totalToday, routinesProv.routines.length),
+              ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: list.length,
+                  itemBuilder: (context, index) {
+                    final r = list[index];
+                    return RoutineCard(
+                      routine: r,
+                      onTap: () => Navigator.pushNamed(
+                        context,
+                        AppRoutes.routineDetail,
+                        arguments: r.id,
                       ),
-                    ),
-                  );
-                },
-              );
-            },
+                      onComplete: () async {
+                        final when = DateTime.now();
+                        await context.read<RoutinesProvider>().toggleComplete(
+                          r,
+                          when,
+                        );
+                        if (!context.mounted) return;
+                        final messenger = ScaffoldMessenger.of(context);
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: const Text('Marked as done'),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              onPressed: () {
+                                context.read<RoutinesProvider>().undoComplete(
+                                  r,
+                                  when,
+                                );
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),
@@ -248,6 +327,107 @@ class HomeScreen extends StatelessWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.pushNamed(context, AppRoutes.routineNew),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildStatsRow(BuildContext context, int todayCompleted, int totalToday, int totalRoutines) {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Today',
+            '$todayCompleted/$totalToday',
+            Icons.today,
+            Colors.blue,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Total',
+            '$totalRoutines',
+            Icons.list,
+            Colors.green,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _buildStatCard(
+            context,
+            'Active',
+            '${totalRoutines}',
+            Icons.check_circle,
+            Colors.orange,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard(BuildContext context, String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.3),
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuoteCard(BuildContext context) {
+    final quotes = [
+      "Success is the sum of small efforts repeated day in and day out.",
+      "You don't have to be great to start, but you have to start to be great.",
+      "The secret of getting ahead is getting started.",
+      "Your future is created by what you do today, not tomorrow.",
+      "Small daily improvements lead to stunning results.",
+    ];
+    final quote = quotes[math.Random().nextInt(quotes.length)];
+    
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(
+              Icons.format_quote,
+              size: 32,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                quote,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
