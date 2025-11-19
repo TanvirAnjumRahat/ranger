@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/notifications_provider.dart';
+import '../providers/routine_provider.dart';
+import '../providers/theme_provider.dart';
+import '../providers/locale_provider.dart';
+import '../services/notification_service.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -78,6 +82,46 @@ class SettingsScreen extends StatelessWidget {
           ),
           _buildSettingsTile(
             context: context,
+            icon: Icons.notifications_active_outlined,
+            title: 'Test Notification',
+            subtitle: 'Send a test notification now',
+            onTap: () async {
+              final notifService = NotificationService();
+              await notifService.sendTestNotification();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Test notification sent! Check your notification tray.',
+                    ),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+              }
+            },
+          ),
+          _buildSettingsTile(
+            context: context,
+            icon: Icons.refresh_outlined,
+            title: 'Reschedule Notifications',
+            subtitle: 'Reset all routine notifications',
+            onTap: () async {
+              final routinesProv = context.read<RoutinesProvider>();
+              await routinesProv.rescheduleAllNotifications();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'All notifications rescheduled successfully!',
+                    ),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
+          _buildSettingsTile(
+            context: context,
             icon: Icons.access_time_outlined,
             title: 'Reminder Settings',
             subtitle: 'Manage notification times',
@@ -95,17 +139,40 @@ class SettingsScreen extends StatelessWidget {
             icon: Icons.palette_outlined,
             title: 'Theme',
             subtitle: 'Light / Dark mode',
-            onTap: () {
-              // Future: Theme switcher
-            },
+            trailing: Consumer<ThemeProvider>(
+              builder: (context, themeProv, _) {
+                return Switch(
+                  value: themeProv.isDarkMode,
+                  onChanged: (value) {
+                    themeProv.toggleTheme();
+                  },
+                );
+              },
+            ),
           ),
           _buildSettingsTile(
             context: context,
             icon: Icons.language_outlined,
             title: 'Language',
-            subtitle: 'English',
-            onTap: () {
-              // Future: Language selector
+            subtitle: context.watch<LocaleProvider>().languageCode == 'en'
+                ? 'English'
+                : 'বাংলা (Bengali)',
+            onTap: () async {
+              final localeProvider = context.read<LocaleProvider>();
+              final currentLocale = localeProvider.locale;
+              final newLocale = currentLocale.languageCode == 'en'
+                  ? const Locale('bn')
+                  : const Locale('en');
+              await localeProvider.setLocale(newLocale);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Language changed to ${newLocale.languageCode == 'en' ? 'English' : 'বাংলা'}',
+                    ),
+                  ),
+                );
+              }
             },
           ),
 

@@ -38,7 +38,17 @@ class AuthProvider extends ChangeNotifier {
     _setError(null);
     _setLoading(true);
     try {
-      await _authService.signInWithEmail(email, password);
+      final credential = await _authService.signInWithEmail(email, password);
+
+      // Check if email is verified
+      if (credential.user != null && !credential.user!.emailVerified) {
+        await _authService.signOut();
+        _setError(
+          'Please verify your email before signing in. Check your inbox.',
+        );
+        return false;
+      }
+
       return true;
     } on FirebaseAuthException catch (e) {
       _setError(_humanizeError(e));

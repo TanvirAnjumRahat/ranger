@@ -15,8 +15,10 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> initialize() async {
     try {
       await _service.initialize();
+      // Request notification permissions immediately after initialization
+      await _service.requestPermissions();
     } catch (e) {
-      _error = 'Notifications init failed';
+      _error = 'Notifications init failed: $e';
     } finally {
       notifyListeners();
     }

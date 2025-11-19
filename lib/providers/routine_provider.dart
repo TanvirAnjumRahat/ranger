@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/routine.dart';
+import '../models/enums.dart';
 import '../services/routine_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -41,11 +42,42 @@ class RoutinesProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       _routines = await _service.fetchForUser(uid);
+      // Schedule notifications for all loaded routines
+      await _rescheduleAllNotifications();
     } catch (e) {
       _setError('Failed to load routines: ' + e.toString());
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Reschedule notifications for all active routines
+  Future<void> _rescheduleAllNotifications() async {
+    if (kDebugMode) {
+      print('📱 Rescheduling notifications for ${_routines.length} routines');
+    }
+    for (final routine in _routines) {
+      // Only schedule for non-completed routines
+      if (routine.status != RoutineStatus.completed) {
+        try {
+          await _notifier.scheduleForRoutine(routine);
+        } catch (e) {
+          if (kDebugMode) {
+            print(
+              '⚠️ Failed to schedule notification for ${routine.title}: $e',
+            );
+          }
+        }
+      }
+    }
+    if (kDebugMode) {
+      print('✅ Notification rescheduling completed');
+    }
+  }
+
+  /// Manually reschedule all notifications (useful for troubleshooting)
+  Future<void> rescheduleAllNotifications() async {
+    await _rescheduleAllNotifications();
   }
 
   Future<void> addRoutine(Routine r) async {

@@ -19,8 +19,9 @@ class NotificationService {
   bool _initialized = false;
 
   Future<void> initialize() async {
-    if (_initialized || kIsWeb)
+    if (_initialized || kIsWeb) {
       return; // local notifications unsupported on web
+    }
     await TimeUtils.ensureInitialized();
     const androidSettings = AndroidInitializationSettings(
       '@mipmap/ic_launcher',
@@ -80,6 +81,22 @@ class NotificationService {
             AndroidFlutterLocalNotificationsPlugin
           >();
       await android?.requestNotificationsPermission();
+
+      // Request exact alarm permission for precise timing
+      try {
+        final canSchedule =
+            await android?.canScheduleExactNotifications() ?? false;
+        if (!canSchedule) {
+          debugPrint(
+            '⚠️ Requesting exact alarm permission for precise notifications...',
+          );
+          await android?.requestExactAlarmsPermission();
+        }
+      } catch (e) {
+        debugPrint(
+          'Note: Exact alarm permission not available on this Android version',
+        );
+      }
     } else {
       final ios = _fln
           .resolvePlatformSpecificImplementation<
@@ -92,12 +109,46 @@ class NotificationService {
   Future<void> scheduleForRoutine(Routine r) async {
     if (kIsWeb) return;
     if (!_initialized) await initialize();
+
+    // Check if exact alarm permission is granted (Android 12+)
+    if (Platform.isAndroid) {
+      final android = _fln
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      final canScheduleExactAlarms =
+          await android?.canScheduleExactNotifications() ?? false;
+      if (!canScheduleExactAlarms) {
+        debugPrint(
+          '❌ Cannot schedule exact notifications - permission not granted',
+        );
+        debugPrint(
+          '   Please enable: Settings → Apps → ranger → Alarms & reminders → Allow',
+        );
+        return; // Don't schedule if permission not granted
+      } else {
+        debugPrint('✅ Exact alarm permission granted');
+      }
+    }
+
+    debugPrint('🔔 Scheduling notification for routine: ${r.title}');
+    debugPrint('   Date: ${r.date.toDate()}');
+    debugPrint('   Time: ${r.time.toDate()}');
+
     final androidChannel = AndroidNotificationDetails(
       'routine_channel',
       'Routine Reminders',
       channelDescription: 'Notifications for routine reminders',
       importance: Importance.max,
       priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      enableLights: true,
+      channelShowBadge: true,
+      visibility: NotificationVisibility.public,
+      autoCancel: false,
+      fullScreenIntent: true,
+      styleInformation: const BigTextStyleInformation(''),
       actions: const [
         AndroidNotificationAction(
           'MARK_COMPLETE',
@@ -126,8 +177,12 @@ class NotificationService {
     final List<_ScheduleSpec> specs = _buildScheduleSpecs(r, date, time);
     final idBase = r.id.hashCode & 0x7fffffff;
 
+    debugPrint('   📅 Scheduling ${specs.length} notification(s)');
+
     for (var i = 0; i < specs.length; i++) {
       final spec = specs[i];
+      debugPrint('   → Notification scheduled for: ${spec.when}');
+
       // Base notification
       await _fln.zonedSchedule(
         idBase + i * 20,
@@ -145,6 +200,9 @@ class NotificationService {
       for (var j = 0; j < r.reminders.length; j++) {
         final rem = r.reminders[j];
         final at = spec.when.subtract(Duration(minutes: rem.minutesBefore));
+        debugPrint(
+          '   → Reminder scheduled for: $at (${rem.minutesBefore} min before)',
+        );
         await _fln.zonedSchedule(
           idBase + i * 20 + j + 1,
           r.title,
@@ -159,6 +217,72 @@ class NotificationService {
         );
       }
     }
+    debugPrint('✅ Notification scheduling completed for: ${r.title}');
+
+    // Send immediate confirmation notification that scheduling worked
+    await _showSchedulingConfirmation(r.title, specs.first.when);
+  }
+
+  /// Show a confirmation notification that scheduling was successful
+  Future<void> _showSchedulingConfirmation(
+    String routineTitle,
+    tz.TZDateTime when,
+  ) async {
+    final androidChannel = AndroidNotificationDetails(
+      'routine_channel',
+      'Routine Reminders',
+      channelDescription: 'Notifications for routine reminders',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      autoCancel: true,
+    );
+    const iosDetails = DarwinNotificationDetails();
+    final details = NotificationDetails(
+      android: androidChannel,
+      iOS: iosDetails,
+    );
+
+    final timeStr =
+        '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}';
+
+    await _fln.show(
+      999998,
+      '✅ Notification Scheduled',
+      '$routineTitle will notify you at $timeStr',
+      details,
+    );
+  }
+
+  /// Send an immediate test notification to verify permissions and setup
+  Future<void> sendTestNotification() async {
+    if (kIsWeb) return;
+    if (!_initialized) await initialize();
+
+    debugPrint('🧪 Sending test notification...');
+
+    const androidChannel = AndroidNotificationDetails(
+      'routine_channel',
+      'Routine Reminders',
+      channelDescription: 'Notifications for routine reminders',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const details = NotificationDetails(
+      android: androidChannel,
+      iOS: iosDetails,
+    );
+
+    await _fln.show(
+      999999, // Special ID for test notifications
+      'Test Notification',
+      'If you see this, notifications are working! 🎉',
+      details,
+    );
+
+    debugPrint('✅ Test notification sent');
   }
 
   Future<void> cancelForRoutine(Routine r) async {

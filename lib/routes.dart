@@ -3,10 +3,9 @@ import 'screens/home_screen.dart';
 import 'screens/routine_detail_screen.dart';
 import 'screens/routine_form_screen.dart';
 import 'screens/analytics_screen.dart';
-import 'screens/calendar_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/templates_screen.dart';
-import 'screens/onboarding_screen.dart';
+import 'screens/incomplete_tasks_screen.dart';
 
 class AppRoutes {
   static const home = '/home';
@@ -14,8 +13,9 @@ class AppRoutes {
   static const routineDetail = '/routine/:id';
   static const routineEdit = '/routine/:id/edit';
   static const analytics = '/analytics';
-  static const calendar = '/calendar';
   static const settings = '/settings';
+  static const templates = '/templates';
+  static const incompleteTasks = '/incomplete-tasks';
 }
 
 Route<dynamic>? onGenerateRoute(RouteSettings settings) {
@@ -30,11 +30,14 @@ Route<dynamic>? onGenerateRoute(RouteSettings settings) {
   if (name == AppRoutes.analytics) {
     return MaterialPageRoute(builder: (_) => const AnalyticsScreen());
   }
-  if (name == AppRoutes.calendar) {
-    return MaterialPageRoute(builder: (_) => const CalendarScreen());
-  }
   if (name == AppRoutes.settings) {
     return MaterialPageRoute(builder: (_) => const SettingsScreen());
+  }
+  if (name == AppRoutes.templates) {
+    return MaterialPageRoute(builder: (_) => const TemplatesScreen());
+  }
+  if (name == AppRoutes.incompleteTasks) {
+    return MaterialPageRoute(builder: (_) => const IncompleteTasksScreen());
   }
 
   // Fallback for detail/edit with dynamic id should be handled by pushNamed with args

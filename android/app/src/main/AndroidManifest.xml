@@ -3,6 +3,20 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Required to display notifications on Android 13+ (API 33) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Required to schedule exact alarms on Android 12+ (API 31+) -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <!-- Alternative permission for exact alarms (less restrictive) -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
+    <!-- Wake up device for notifications -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- Receive boot completed to reschedule notifications after device restart -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Full screen intent for notifications -->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
+    <!-- Vibration for notifications -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Foreground service for reliable notifications -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <application
         android:label="ranger"
         android:name="${applicationName}"
@@ -34,6 +48,20 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Receiver to reschedule notifications after device boot -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

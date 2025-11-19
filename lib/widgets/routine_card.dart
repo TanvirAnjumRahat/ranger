@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/routine.dart';
 import '../widgets/priority_badge.dart';
 import '../widgets/category_chip.dart';
@@ -17,9 +18,29 @@ class RoutineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompleted = routine.status.name == 'completed';
+    final timeOfDay = routine.time.toDate();
+    final formattedTime = DateFormat('h:mm a').format(timeOfDay);
+
     return Card(
       child: ListTile(
         onTap: onTap,
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.access_time,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              formattedTime,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
         title: Text(routine.title),
         subtitle: Wrap(
           spacing: 8,

@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'home_screen.dart';
 import 'analytics_screen.dart';
-import 'calendar_screen.dart';
-import 'goals_screen.dart';
+import 'upcoming_screen.dart';
+import 'projects_screen.dart';
 import 'settings_screen.dart';
-import 'templates_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/routine_provider.dart';
 import '../providers/notifications_provider.dart';
+import '../providers/projects_provider.dart';
 import '../routes.dart';
 
 class MainNavigation extends StatefulWidget {
@@ -25,16 +25,16 @@ class _MainNavigationState extends State<MainNavigation> {
   final List<Widget> _screens = const [
     HomeScreen(),
     AnalyticsScreen(),
-    CalendarScreen(),
-    GoalsScreen(),
+    UpcomingScreen(),
+    ProjectsScreen(),
     SettingsScreen(),
   ];
 
   final List<String> _titles = const [
     'My Routines',
     'Analytics',
-    'Calendar',
-    'Goals',
+    'Upcoming',
+    'Projects',
     'Settings',
   ];
 
@@ -87,10 +87,10 @@ class _MainNavigationState extends State<MainNavigation> {
             ),
           ],
           if (_currentIndex == 3) ...[
-            // Goals screen actions
+            // Projects screen actions
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
-              onSelected: (value) => _handleGoalsMenuAction(context, value),
+              onSelected: (value) => _handleProjectsMenuAction(context, value),
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'filter',
@@ -119,11 +119,20 @@ class _MainNavigationState extends State<MainNavigation> {
       ),
       drawer: _buildDrawer(context),
       body: IndexedStack(index: _currentIndex, children: _screens),
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton(
+              heroTag: 'mainNavFAB',
+              onPressed: () {
+                Navigator.pushNamed(context, '/routine/new');
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
+              color: Colors.black.withValues(alpha: 0.1),
               blurRadius: 10,
               offset: const Offset(0, -2),
             ),
@@ -152,14 +161,14 @@ class _MainNavigationState extends State<MainNavigation> {
               label: 'Analytics',
             ),
             NavigationDestination(
-              icon: Icon(Icons.calendar_today_outlined),
-              selectedIcon: Icon(Icons.calendar_today),
-              label: 'Calendar',
+              icon: Icon(Icons.event_outlined),
+              selectedIcon: Icon(Icons.event),
+              label: 'Upcoming',
             ),
             NavigationDestination(
-              icon: Icon(Icons.flag_outlined),
-              selectedIcon: Icon(Icons.flag),
-              label: 'Goals',
+              icon: Icon(Icons.folder_outlined),
+              selectedIcon: Icon(Icons.folder),
+              label: 'Projects',
             ),
             NavigationDestination(
               icon: Icon(Icons.settings_outlined),
@@ -174,7 +183,7 @@ class _MainNavigationState extends State<MainNavigation> {
 
   Widget _buildDrawer(BuildContext context) {
     final user = context.watch<AuthProvider>().user;
-    
+
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
@@ -200,10 +209,7 @@ class _MainNavigationState extends State<MainNavigation> {
             ),
             accountName: const Text(
               'Routine Ranger',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             accountEmail: Text(user?.email ?? 'user@example.com'),
           ),
@@ -221,14 +227,14 @@ class _MainNavigationState extends State<MainNavigation> {
           ),
           _buildDrawerItem(
             context,
-            icon: Icons.calendar_today,
-            title: 'Calendar',
+            icon: Icons.event,
+            title: 'Upcoming',
             index: 2,
           ),
           _buildDrawerItem(
             context,
-            icon: Icons.flag,
-            title: 'Goals',
+            icon: Icons.folder,
+            title: 'Projects',
             index: 3,
           ),
           const Divider(),
@@ -238,6 +244,14 @@ class _MainNavigationState extends State<MainNavigation> {
             onTap: () {
               Navigator.pop(context);
               Navigator.pushNamed(context, '/templates');
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.pending_actions),
+            title: const Text('Incomplete Tasks'),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.pushNamed(context, AppRoutes.incompleteTasks);
             },
           ),
           ListTile(
@@ -262,7 +276,9 @@ class _MainNavigationState extends State<MainNavigation> {
                 applicationVersion: '1.0.0',
                 applicationIcon: const Icon(Icons.schedule, size: 48),
                 children: [
-                  const Text('Build better habits and stay consistent with your daily routines.'),
+                  const Text(
+                    'Build better habits and stay consistent with your daily routines.',
+                  ),
                 ],
               );
             },
@@ -306,7 +322,7 @@ class _MainNavigationState extends State<MainNavigation> {
     required int index,
   }) {
     final isSelected = _currentIndex == index;
-    
+
     return ListTile(
       leading: Icon(
         icon,
@@ -320,7 +336,9 @@ class _MainNavigationState extends State<MainNavigation> {
         ),
       ),
       selected: isSelected,
-      selectedTileColor: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+      selectedTileColor: Theme.of(
+        context,
+      ).colorScheme.primaryContainer.withValues(alpha: 0.3),
       onTap: () {
         Navigator.pop(context);
         setState(() {
@@ -380,44 +398,153 @@ class _MainNavigationState extends State<MainNavigation> {
     }
   }
 
-  void _handleGoalsMenuAction(BuildContext context, String value) {
+  void _handleProjectsMenuAction(BuildContext context, String value) {
     if (value == 'filter') {
-      showDialog(
+      showModalBottomSheet(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Filter Goals'),
-          content: const Text('Filter by category or priority'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
+        builder: (sheetContext) {
+          // Get provider from parent context before entering bottom sheet
+          final provider = context.read<ProjectsProvider>();
+          return ListenableBuilder(
+            listenable: provider,
+            builder: (_, __) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Filter Projects',
+                        style: Theme.of(sheetContext).textTheme.titleLarge,
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          provider.clearFilters();
+                          Navigator.pop(sheetContext);
+                        },
+                        child: const Text('Clear All'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Category',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children:
+                        [
+                          'work',
+                          'personal',
+                          'health',
+                          'finance',
+                          'others',
+                        ].map((cat) {
+                          final isSelected = provider.filterCategory == cat;
+                          return FilterChip(
+                            label: Text(
+                              cat[0].toUpperCase() + cat.substring(1),
+                            ),
+                            selected: isSelected,
+                            onSelected: (selected) {
+                              provider.setFilterCategory(selected ? cat : null);
+                            },
+                          );
+                        }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Priority',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    children: ['high', 'medium', 'low'].map((pri) {
+                      final isSelected = provider.filterPriority == pri;
+                      return FilterChip(
+                        label: Text(pri[0].toUpperCase() + pri.substring(1)),
+                        selected: isSelected,
+                        onSelected: (selected) {
+                          provider.setFilterPriority(selected ? pri : null);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
             ),
-          ],
-        ),
+          );
+        },
       );
     } else if (value == 'sort') {
-      showDialog(
+      showModalBottomSheet(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Sort Goals'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('By Date'),
-                onTap: () => Navigator.pop(context),
+        builder: (sheetContext) {
+          // Get provider from parent context before entering bottom sheet
+          final provider = context.read<ProjectsProvider>();
+          return ListenableBuilder(
+            listenable: provider,
+            builder: (_, __) => Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sort Projects',
+                    style: Theme.of(sheetContext).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  RadioListTile<String>(
+                    title: const Text('By Priority'),
+                    subtitle: const Text('High priority first'),
+                    value: 'priority',
+                    groupValue: provider.sortBy,
+                    onChanged: (value) {
+                      provider.setSortBy(value!);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('By Deadline'),
+                    subtitle: const Text('Nearest deadline first'),
+                    value: 'deadline',
+                    groupValue: provider.sortBy,
+                    onChanged: (value) {
+                      provider.setSortBy(value!);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('By Category'),
+                    subtitle: const Text('Group by category'),
+                    value: 'category',
+                    groupValue: provider.sortBy,
+                    onChanged: (value) {
+                      provider.setSortBy(value!);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('By Date'),
+                    subtitle: const Text('Newest first'),
+                    value: 'date',
+                    groupValue: provider.sortBy,
+                    onChanged: (value) {
+                      provider.setSortBy(value!);
+                      Navigator.pop(sheetContext);
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                title: const Text('By Priority'),
-                onTap: () => Navigator.pop(context),
-              ),
-              ListTile(
-                title: const Text('By Category'),
-                onTap: () => Navigator.pop(context),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       );
     }
   }

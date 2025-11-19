@@ -14,4 +14,9 @@ class FiltersProvider extends ChangeNotifier {
     _filters = _filters.copyWith(search: q);
     notifyListeners();
   }
+
+  void clearFilters() {
+    _filters = const Filters();
+    notifyListeners();
+  }
 }

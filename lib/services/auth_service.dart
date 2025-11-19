@@ -16,10 +16,18 @@ class AuthService {
   }
 
   Future<UserCredential> signUpWithEmail(String email, String password) async {
-    return await _auth.createUserWithEmailAndPassword(
+    final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
+
+    // Send email verification
+    await credential.user?.sendEmailVerification();
+
+    // Sign out immediately until email is verified
+    await _auth.signOut();
+
+    return credential;
   }
 
   Future<void> sendPasswordReset(String email) async {

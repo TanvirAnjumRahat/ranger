@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../routes.dart';
+import '../auth/auth_home_page.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -181,7 +181,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_completed', true);
     if (mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.home);
+      // Replace with AuthHomePage which handles login/signup flow
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const AuthHomePage()),
+      );
     }
   }
 
